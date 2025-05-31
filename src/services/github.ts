@@ -46,6 +46,10 @@ export class GitHubService {
     this.token = token;
   }
 
+  setToken(token?: string) {
+    this.token = token;
+  }
+
   private get headers() {
     return this.token
       ? { Authorization: `Bearer ${this.token}` }
