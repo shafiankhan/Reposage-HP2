@@ -1,47 +1,37 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string;
-  credits: number;
-  plan: 'free' | 'pro' | 'enterprise';
-}
+import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../stores/authStore';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  user: any;
+  login: () => void;
   logout: () => void;
 }
-
-const mockUser: User = {
-  id: 'user-1',
-  name: 'Alex Johnson',
-  email: 'alex@example.com',
-  avatarUrl: 'https://i.pravatar.cc/150?img=33',
-  credits: 1250,
-  plan: 'pro'
-};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(mockUser);
-  const isAuthenticated = !!user;
+  const navigate = useNavigate();
+  const { user, isAuthenticated, login, logout, checkAuth } = useAuthStore();
 
-  // Mock login functionality
-  const login = async (email: string, password: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setUser(mockUser);
-  };
+  useEffect(() => {
+    checkAuth();
 
-  // Mock logout functionality
-  const logout = () => {
-    setUser(null);
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        checkAuth();
+      } else if (event === 'SIGNED_OUT') {
+        logout();
+        navigate('/');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [checkAuth, logout, navigate]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
