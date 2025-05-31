@@ -9,8 +9,12 @@ import {
   CheckCircle,
   Github
 } from 'lucide-react';
+import LoginForm from '../components/auth/LoginForm';
+import { useAuth } from '../context/AuthContext';
 
 export default function LandingPage() {
+  const { isAuthenticated } = useAuth();
+  
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
@@ -18,7 +22,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background-dark text-white">
-      {/* Navbar */}
       <nav className="border-b border-gray-800 backdrop-blur-sm">
         <div className="container-custom flex items-center justify-between py-4">
           <div className="flex items-center">
@@ -30,19 +33,20 @@ export default function LandingPage() {
             <a href="#pricing" className="text-sm text-gray-300 hover:text-white">Pricing</a>
             <a href="#testimonials" className="text-sm text-gray-300 hover:text-white">Testimonials</a>
           </div>
-          <div className="flex items-center space-x-4">
-            <Link to="/dashboard" className="btn-outline text-sm">
-              Log in
-            </Link>
+          {isAuthenticated ? (
             <Link to="/dashboard" className="btn-primary text-sm">
-              Sign up
+              Go to Dashboard
               <ChevronRight className="ml-1 h-4 w-4" />
             </Link>
-          </div>
+          ) : (
+            <button className="btn-primary text-sm" onClick={() => document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })}>
+              Get Started
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </button>
+          )}
         </div>
       </nav>
 
-      {/* Hero section */}
       <section className="relative py-20">
         <div className="absolute inset-0 bg-gradient-to-r from-primary-900/20 to-primary-600/20 backdrop-blur-3xl" />
         <motion.div 
@@ -76,18 +80,15 @@ export default function LandingPage() {
             extract insights from meetings, and collaborate more effectively.
           </motion.p>
           
-          <motion.div 
-            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
-            variants={fadeIn}
-          >
-            <Link to="/dashboard" className="btn-primary px-8 py-3">
-              Try it free
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Link>
-            <Link to="#features" className="btn-outline px-8 py-3">
-              See features
-            </Link>
-          </motion.div>
+          {!isAuthenticated && (
+            <motion.div 
+              id="login-section"
+              className="mt-12 flex justify-center"
+              variants={fadeIn}
+            >
+              <LoginForm />
+            </motion.div>
+          )}
           
           {/* Code example */}
           <motion.div 
