@@ -20,6 +20,10 @@ export default function LandingPage() {
     visible: { opacity: 1, y: 0 }
   };
 
+  const scrollToFeatures = () => {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-background-dark text-white">
       <nav className="border-b border-gray-800 backdrop-blur-sm">
@@ -29,7 +33,7 @@ export default function LandingPage() {
             <span className="ml-2 text-xl font-bold text-white">RepoSage</span>
           </div>
           <div className="hidden md:flex items-center space-x-6">
-            <a href="#features" className="text-sm text-gray-300 hover:text-white">Features</a>
+            <button onClick={scrollToFeatures} className="text-sm text-gray-300 hover:text-white">Features</button>
             <a href="#pricing" className="text-sm text-gray-300 hover:text-white">Pricing</a>
             <a href="#testimonials" className="text-sm text-gray-300 hover:text-white">Testimonials</a>
           </div>
@@ -39,10 +43,21 @@ export default function LandingPage() {
               <ChevronRight className="ml-1 h-4 w-4" />
             </Link>
           ) : (
-            <button className="btn-primary text-sm" onClick={() => document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })}>
-              Get Started
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </button>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="btn-outline text-sm"
+              >
+                Log in
+              </button>
+              <button 
+                onClick={() => document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="btn-primary text-sm"
+              >
+                Sign up
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </button>
+            </div>
           )}
         </div>
       </nav>
@@ -80,6 +95,25 @@ export default function LandingPage() {
             extract insights from meetings, and collaborate more effectively.
           </motion.p>
           
+          <motion.div 
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+            variants={fadeIn}
+          >
+            <button 
+              onClick={() => document.getElementById('login-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="btn-primary px-8 py-3"
+            >
+              Try it free
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </button>
+            <button 
+              onClick={scrollToFeatures}
+              className="btn-outline px-8 py-3"
+            >
+              See features
+            </button>
+          </motion.div>
+
           {!isAuthenticated && (
             <motion.div 
               id="login-section"
