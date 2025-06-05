@@ -22,7 +22,6 @@ export default function LoginForm() {
       if (error) throw error;
       if (!data.url) throw new Error('No OAuth URL returned');
       
-      // Redirect to GitHub OAuth flow
       window.location.href = data.url;
     } catch (error) {
       console.error('Error:', error);
