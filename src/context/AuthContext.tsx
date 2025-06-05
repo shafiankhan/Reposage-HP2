@@ -7,8 +7,8 @@ import toast from 'react-hot-toast';
 interface AuthContextType {
   isAuthenticated: boolean;
   user: any;
-  login: () => void;
-  logout: () => void;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

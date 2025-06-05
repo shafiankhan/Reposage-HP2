@@ -22,6 +22,7 @@ export default function LoginForm() {
       if (error) throw error;
       if (!data.url) throw new Error('No OAuth URL returned');
       
+      // Redirect to GitHub OAuth flow
       window.location.href = data.url;
     } catch (error) {
       console.error('Error:', error);
@@ -37,7 +38,7 @@ export default function LoginForm() {
       <button
         onClick={handleGitHubLogin}
         disabled={isLoading}
-        className="w-full btn-primary flex items-center justify-center gap-2 py-3 mb-6"
+        className="w-full flex items-center justify-center gap-2 py-3 mb-6 btn-primary"
       >
         {isLoading ? (
           <>
