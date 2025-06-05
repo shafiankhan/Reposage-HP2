@@ -1,12 +1,13 @@
 import { create } from 'zustand';
-import { AuthService } from '../services/auth';
-import { githubService } from '../services/github';
+import { supabase } from '../lib/supabase';
 
 interface User {
-  login: string;
-  avatar_url: string;
-  name: string;
+  id: string;
   email: string;
+  name: string;
+  avatarUrl: string;
+  credits: number;
+  plan: string;
 }
 
 interface AuthState {
@@ -14,9 +15,9 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
-  login: () => void;
+  login: () => Promise<void>;
   handleCallback: (code: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
@@ -26,17 +27,52 @@ export const useAuthStore = create<AuthState>((set) => ({
   loading: false,
   error: null,
 
-  login: () => {
-    AuthService.initiateGitHubLogin();
-  },
-
-  handleCallback: async (code: string) => {
+  login: async () => {
     set({ loading: true, error: null });
     try {
-      const token = await AuthService.handleCallback(code);
-      const user = await AuthService.getCurrentUser(token);
-      githubService.setToken(token);
-      set({ user, isAuthenticated: true, loading: false });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          scopes: 'repo user:email read:org'
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Login failed' });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  handleCallback: async () => {
+    set({ loading: true, error: null });
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      if (!session) throw new Error('No session found');
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (userError) throw userError;
+
+      set({
+        user: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.username,
+          avatarUrl: userData.avatar_url,
+          credits: userData.credits,
+          plan: 'free'
+        },
+        isAuthenticated: true,
+        loading: false
+      });
     } catch (error) {
       set({
         loading: false,
@@ -46,27 +82,48 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  logout: () => {
-    AuthService.logout();
-    githubService.setToken(undefined);
-    set({ user: null, isAuthenticated: false });
+  logout: async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      set({ user: null, isAuthenticated: false });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Logout failed' });
+      throw error;
+    }
   },
 
   checkAuth: async () => {
-    const token = AuthService.getToken();
-    if (!token) {
-      set({ isAuthenticated: false });
-      return;
-    }
-
     set({ loading: true });
     try {
-      const user = await AuthService.getCurrentUser(token);
-      githubService.setToken(token);
-      set({ user, isAuthenticated: true, loading: false });
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      
+      if (session?.user) {
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (userError) throw userError;
+
+        set({
+          user: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.username,
+            avatarUrl: userData.avatar_url,
+            credits: userData.credits,
+            plan: 'free'
+          },
+          isAuthenticated: true
+        });
+      }
     } catch (error) {
-      AuthService.logout();
-      set({ user: null, isAuthenticated: false, loading: false });
+      set({ user: null, isAuthenticated: false });
+    } finally {
+      set({ loading: false });
     }
   }
 }));

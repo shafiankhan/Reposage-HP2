@@ -11,18 +11,21 @@ export default function LoginForm() {
   const handleGitHubLogin = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
           scopes: 'repo user:email read:org'
         }
       });
+      
       if (error) throw error;
+      if (!data.url) throw new Error('No OAuth URL returned');
+      
+      window.location.href = data.url;
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to connect with GitHub');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -69,6 +72,11 @@ export default function LoginForm() {
                 brandAccent: '#1d4ed8'
               }
             }
+          },
+          className: {
+            container: 'supabase-auth-container',
+            button: 'supabase-auth-button',
+            input: 'supabase-auth-input'
           }
         }}
         theme="dark"

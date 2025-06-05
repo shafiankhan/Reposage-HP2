@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
+import toast from 'react-hot-toast';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -19,11 +20,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
-        checkAuth();
+        await checkAuth();
+        toast.success('Successfully signed in!');
+        navigate('/dashboard');
       } else if (event === 'SIGNED_OUT') {
         logout();
+        toast.success('Successfully signed out');
         navigate('/');
       }
     });
