@@ -11,8 +11,8 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Let Supabase handle the OAuth callback
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for auth state to settle
+        // Wait for auth state to settle
+        await new Promise(resolve => setTimeout(resolve, 1500));
         await checkAuth();
         navigate('/dashboard');
       } catch (error) {
@@ -33,7 +33,7 @@ export default function AuthCallback() {
           Completing Authentication
         </h2>
         <p className="text-gray-400">
-          Please wait while we complete the authentication process...
+          Please wait while we set up your account...
         </p>
       </div>
     </div>

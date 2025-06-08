@@ -18,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, login, logout, checkAuth } = useAuthStore();
 
   useEffect(() => {
+    // Initial auth check
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -27,7 +28,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await checkAuth();
           toast.success('Successfully signed in!');
-          navigate('/dashboard');
+          // Small delay to ensure state is updated
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 100);
         } catch (error) {
           console.error('Error during sign in:', error);
           toast.error('Sign in successful but failed to load user data');

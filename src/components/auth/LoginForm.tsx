@@ -52,6 +52,7 @@ export default function LoginForm() {
           options: {
             data: {
               user_name: 'demo-user',
+              full_name: 'Demo User',
               avatar_url: 'https://i.pravatar.cc/150?img=1',
               github_id: 'demo-user-123'
             }
@@ -60,25 +61,20 @@ export default function LoginForm() {
 
         if (signUpError) throw signUpError;
         
-        if (signUpData.user) {
-          // Create user record in public.users table
-          const { error: userCreateError } = await supabase
-            .from('users')
-            .insert([{
-              id: signUpData.user.id,
-              github_id: 'demo-user-123',
-              username: 'Demo User',
-              email: demoEmail,
-              avatar_url: 'https://i.pravatar.cc/150?img=1',
-              credits: 1000
-            }]);
-
-          if (userCreateError) {
-            console.warn('User record creation failed:', userCreateError);
-          }
-        }
+        toast.success('Demo account created! Please check your email to confirm (or wait a moment for auto-login)');
         
-        toast.success('Demo account created and logged in!');
+        // Try to sign in again after a short delay
+        setTimeout(async () => {
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: demoEmail,
+            password: demoPassword,
+          });
+          
+          if (!retryError) {
+            toast.success('Demo account logged in!');
+          }
+        }, 2000);
+        
       } else if (signInError) {
         throw signInError;
       } else {
@@ -87,7 +83,7 @@ export default function LoginForm() {
       
     } catch (error) {
       console.error('Demo login error:', error);
-      toast.error('Failed to create demo account');
+      toast.error('Failed to access demo account');
     } finally {
       setIsDemoLoading(false);
     }
@@ -100,12 +96,12 @@ export default function LoginForm() {
       <button
         onClick={handleDemoLogin}
         disabled={isDemoLoading}
-        className="w-full flex items-center justify-center gap-2 py-3 mb-4 btn-primary bg-green-600 hover:bg-green-700"
+        className="w-full flex items-center justify-center gap-2 py-3 mb-4 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors disabled:opacity-50"
       >
         {isDemoLoading ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin" />
-            Creating Demo Account...
+            Setting up Demo...
           </>
         ) : (
           <>
@@ -138,7 +134,7 @@ export default function LoginForm() {
           <div className="w-full border-t border-gray-700"></div>
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
+          <span className="px-2 bg-gray-900 text-gray-400">Or continue with email</span>
         </div>
       </div>
 
