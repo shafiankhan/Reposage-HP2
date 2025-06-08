@@ -53,21 +53,45 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (error) throw error;
       if (!session) throw new Error('No session found');
 
+      // Try to fetch existing user
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', session.user.id)
         .single();
 
-      if (userError) throw userError;
+      let finalUserData = userData;
+
+      // If user doesn't exist, create them
+      if (userError && userError.code === 'PGRST116') {
+        const newUser = {
+          id: session.user.id,
+          github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || '',
+          username: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || '',
+          email: session.user.email || '',
+          avatar_url: session.user.user_metadata?.avatar_url || '',
+          credits: 0
+        };
+
+        const { data: createdUser, error: createError } = await supabase
+          .from('users')
+          .insert([newUser])
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        finalUserData = createdUser;
+      } else if (userError) {
+        throw userError;
+      }
 
       set({
         user: {
-          id: userData.id,
-          email: userData.email,
-          name: userData.username,
-          avatarUrl: userData.avatar_url,
-          credits: userData.credits,
+          id: finalUserData.id,
+          email: finalUserData.email,
+          name: finalUserData.username,
+          avatarUrl: finalUserData.avatar_url,
+          credits: finalUserData.credits,
           plan: 'free'
         },
         isAuthenticated: true,
@@ -100,21 +124,45 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (error) throw error;
       
       if (session?.user) {
+        // Try to fetch existing user
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        if (userError) throw userError;
+        let finalUserData = userData;
+
+        // If user doesn't exist, create them
+        if (userError && userError.code === 'PGRST116') {
+          const newUser = {
+            id: session.user.id,
+            github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || '',
+            username: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || '',
+            email: session.user.email || '',
+            avatar_url: session.user.user_metadata?.avatar_url || '',
+            credits: 0
+          };
+
+          const { data: createdUser, error: createError } = await supabase
+            .from('users')
+            .insert([newUser])
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          finalUserData = createdUser;
+        } else if (userError) {
+          throw userError;
+        }
 
         set({
           user: {
-            id: userData.id,
-            email: userData.email,
-            name: userData.username,
-            avatarUrl: userData.avatar_url,
-            credits: userData.credits,
+            id: finalUserData.id,
+            email: finalUserData.email,
+            name: finalUserData.username,
+            avatarUrl: finalUserData.avatar_url,
+            credits: finalUserData.credits,
             plan: 'free'
           },
           isAuthenticated: true
