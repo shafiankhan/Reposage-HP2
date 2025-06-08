@@ -4,12 +4,12 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
 import { Github, Loader2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useAuthStore } from '../../stores/authStore';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
-  const checkAuth = useAuthStore(state => state.checkAuth);
+  const navigate = useNavigate();
 
   const handleGitHubLogin = async () => {
     setIsLoading(true);
@@ -86,13 +86,7 @@ export default function LoginForm() {
               throw new Error('Failed to create fallback demo account');
             }
             
-            toast.success('Demo account created and logged in!');
-            
-            // Wait a moment for auth state to update
-            setTimeout(async () => {
-              await checkAuth();
-              window.location.href = '/dashboard';
-            }, 1000);
+            toast.success('Demo account created successfully!');
           } else {
             throw new Error('Failed to access demo account');
           }
@@ -100,15 +94,10 @@ export default function LoginForm() {
           toast.success('Logged in with demo account!');
         }
       } else {
-        // If signup successful, the user should be automatically signed in
-        toast.success('Demo account created and logged in!');
-        
-        // Wait a moment for auth state to update
-        setTimeout(async () => {
-          await checkAuth();
-          window.location.href = '/dashboard';
-        }, 1000);
+        toast.success('Demo account created successfully!');
       }
+      
+      // The auth state change listener will handle the redirect
       
     } catch (error) {
       console.error('Demo login error:', error);

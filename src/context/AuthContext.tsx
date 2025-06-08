@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, login, logout, checkAuth } = useAuthStore();
 
   useEffect(() => {
@@ -28,10 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await checkAuth();
           toast.success('Successfully signed in!');
-          // Small delay to ensure state is updated
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 100);
+          
+          // Only redirect if we're not already on a protected page
+          if (location.pathname === '/' || location.pathname === '/auth/callback') {
+            navigate('/dashboard', { replace: true });
+          }
         } catch (error) {
           console.error('Error during sign in:', error);
           toast.error('Sign in successful but failed to load user data');
@@ -39,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         logout();
         toast.success('Successfully signed out');
-        navigate('/');
+        navigate('/', { replace: true });
       } else if (event === 'TOKEN_REFRESHED') {
         await checkAuth();
       }
@@ -48,7 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [checkAuth, logout, navigate]);
+  }, [checkAuth, logout, navigate, location.pathname]);
+
+  // Redirect authenticated users away from landing page
+  useEffect(() => {
+    if (isAuthenticated && location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, location.pathname, navigate]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
