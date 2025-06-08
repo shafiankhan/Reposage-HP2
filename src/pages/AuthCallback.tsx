@@ -11,14 +11,23 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        console.log('Processing auth callback...');
+        
         // Wait for auth state to settle
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         await checkAuth();
-        navigate('/dashboard');
+        
+        console.log('Auth callback complete, redirecting to dashboard');
+        toast.success('Authentication successful!');
+        
+        // Force redirect to dashboard
+        navigate('/dashboard', { replace: true });
+        
       } catch (error) {
         console.error('Auth callback error:', error);
         toast.error('Authentication failed');
-        navigate('/');
+        navigate('/', { replace: true });
       }
     };
 
@@ -33,7 +42,7 @@ export default function AuthCallback() {
           Completing Authentication
         </h2>
         <p className="text-gray-400">
-          Please wait while we set up your account...
+          Please wait while we set up your account and redirect you to the dashboard...
         </p>
       </div>
     </div>

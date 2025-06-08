@@ -36,68 +36,47 @@ export default function LoginForm() {
   const handleDemoLogin = async () => {
     setIsDemoLoading(true);
     try {
-      // Create a unique demo user to avoid conflicts
-      const timestamp = Date.now();
-      const demoEmail = `demo-${timestamp}@reposage.com`;
+      // Try to sign in with existing demo account first
+      const demoEmail = 'demo@reposage.com';
       const demoPassword = 'demo123456';
       
-      // Create demo user account
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: demoEmail,
         password: demoPassword,
-        options: {
-          emailRedirectTo: undefined, // Skip email confirmation
-          data: {
-            user_name: `demo-user-${timestamp}`,
-            full_name: 'Demo User',
-            avatar_url: 'https://i.pravatar.cc/150?img=1',
-            github_id: `demo-user-${timestamp}`
-          }
-        }
       });
-
-      if (signUpError) {
-        console.error('Demo signup error:', signUpError);
-        // If signup fails, try with existing demo account
-        const fallbackEmail = 'demo@reposage.com';
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: fallbackEmail,
+      
+      if (signInError && (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found'))) {
+        // If demo account doesn't exist, create it
+        console.log('Creating demo account...');
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: demoEmail,
           password: demoPassword,
+          options: {
+            emailRedirectTo: undefined, // Skip email confirmation
+            data: {
+              user_name: 'demo-user',
+              full_name: 'Demo User',
+              avatar_url: 'https://i.pravatar.cc/150?img=1',
+              github_id: 'demo-user'
+            }
+          }
         });
         
-        if (signInError) {
-          // If sign-in fails due to invalid credentials or user not found, create the fallback account
-          if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found')) {
-            const { data: fallbackSignUpData, error: fallbackSignUpError } = await supabase.auth.signUp({
-              email: fallbackEmail,
-              password: demoPassword,
-              options: {
-                emailRedirectTo: undefined, // Skip email confirmation
-                data: {
-                  user_name: 'demo-user',
-                  full_name: 'Demo User',
-                  avatar_url: 'https://i.pravatar.cc/150?img=1',
-                  github_id: 'demo-user'
-                }
-              }
-            });
-            
-            if (fallbackSignUpError) {
-              throw new Error('Failed to create fallback demo account');
-            }
-            
-            toast.success('Demo account created successfully!');
-          } else {
-            throw new Error('Failed to access demo account');
-          }
-        } else {
-          toast.success('Logged in with demo account!');
+        if (signUpError) {
+          throw signUpError;
         }
+        
+        toast.success('Demo account created! Redirecting to dashboard...');
+      } else if (signInError) {
+        throw signInError;
       } else {
-        toast.success('Demo account created successfully!');
+        toast.success('Logged in with demo account! Redirecting to dashboard...');
       }
       
-      // The auth state change listener will handle the redirect
+      // Force redirect to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true });
+      }, 1500);
       
     } catch (error) {
       console.error('Demo login error:', error);
@@ -119,7 +98,7 @@ export default function LoginForm() {
         {isDemoLoading ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin" />
-            Creating Demo Account...
+            Setting up Demo...
           </>
         ) : (
           <>
@@ -176,7 +155,7 @@ export default function LoginForm() {
         }}
         theme="dark"
         providers={[]}
-        redirectTo={`${window.location.origin}/auth/callback`}
+        redirectTo={`${window.location.origin}/dashboard`}
       />
     </div>
   );

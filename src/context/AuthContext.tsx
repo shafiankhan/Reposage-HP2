@@ -30,13 +30,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await checkAuth();
           toast.success('Successfully signed in!');
           
-          // Only redirect if we're not already on a protected page
-          if (location.pathname === '/' || location.pathname === '/auth/callback') {
+          // Always redirect to dashboard after successful sign in
+          setTimeout(() => {
             navigate('/dashboard', { replace: true });
-          }
+          }, 500);
         } catch (error) {
           console.error('Error during sign in:', error);
           toast.error('Sign in successful but failed to load user data');
+          // Still redirect to dashboard even if user data loading fails
+          setTimeout(() => {
+            navigate('/dashboard', { replace: true });
+          }, 1000);
         }
       } else if (event === 'SIGNED_OUT') {
         logout();
@@ -50,11 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [checkAuth, logout, navigate, location.pathname]);
+  }, [checkAuth, logout, navigate]);
 
   // Redirect authenticated users away from landing page
   useEffect(() => {
     if (isAuthenticated && location.pathname === '/') {
+      console.log('Redirecting authenticated user to dashboard');
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, location.pathname, navigate]);
