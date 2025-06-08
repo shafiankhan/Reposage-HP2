@@ -21,7 +21,7 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
   loading: false,
@@ -66,11 +66,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (userError && userError.code === 'PGRST116') {
         const newUser = {
           id: session.user.id,
-          github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || '',
-          username: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || '',
+          github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.user_metadata?.sub || '',
+          username: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || 'User',
           email: session.user.email || '',
-          avatar_url: session.user.user_metadata?.avatar_url || '',
-          credits: 0
+          avatar_url: session.user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+          credits: 1000
         };
 
         const { data: createdUser, error: createError } = await supabase
@@ -137,11 +137,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         if (userError && userError.code === 'PGRST116') {
           const newUser = {
             id: session.user.id,
-            github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || '',
-            username: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || '',
+            github_id: session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.user_metadata?.sub || 'demo-user',
+            username: session.user.user_metadata?.full_name || session.user.user_metadata?.user_name || session.user.user_metadata?.preferred_username || session.user.email?.split('@')[0] || 'User',
             email: session.user.email || '',
-            avatar_url: session.user.user_metadata?.avatar_url || '',
-            credits: 0
+            avatar_url: session.user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+            credits: 1000
           };
 
           const { data: createdUser, error: createError } = await supabase
@@ -150,10 +150,35 @@ export const useAuthStore = create<AuthState>((set) => ({
             .select()
             .single();
 
-          if (createError) throw createError;
-          finalUserData = createdUser;
+          if (createError) {
+            console.warn('Failed to create user record:', createError);
+            // Continue with session data if user creation fails
+            finalUserData = {
+              id: session.user.id,
+              email: session.user.email || '',
+              username: session.user.user_metadata?.full_name || 'User',
+              avatar_url: session.user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+              credits: 1000,
+              github_id: session.user.user_metadata?.user_name || 'demo-user',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+          } else {
+            finalUserData = createdUser;
+          }
         } else if (userError) {
-          throw userError;
+          console.warn('User fetch error:', userError);
+          // Continue with session data if user fetch fails
+          finalUserData = {
+            id: session.user.id,
+            email: session.user.email || '',
+            username: session.user.user_metadata?.full_name || 'User',
+            avatar_url: session.user.user_metadata?.avatar_url || 'https://i.pravatar.cc/150?img=1',
+            credits: 1000,
+            github_id: session.user.user_metadata?.user_name || 'demo-user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
         }
 
         set({
@@ -167,8 +192,11 @@ export const useAuthStore = create<AuthState>((set) => ({
           },
           isAuthenticated: true
         });
+      } else {
+        set({ user: null, isAuthenticated: false });
       }
     } catch (error) {
+      console.error('Auth check error:', error);
       set({ user: null, isAuthenticated: false });
     } finally {
       set({ loading: false });

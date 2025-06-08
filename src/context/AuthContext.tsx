@@ -21,14 +21,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        await checkAuth();
-        toast.success('Successfully signed in!');
-        navigate('/dashboard');
+      console.log('Auth state change:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session) {
+        try {
+          await checkAuth();
+          toast.success('Successfully signed in!');
+          navigate('/dashboard');
+        } catch (error) {
+          console.error('Error during sign in:', error);
+          toast.error('Sign in successful but failed to load user data');
+        }
       } else if (event === 'SIGNED_OUT') {
         logout();
         toast.success('Successfully signed out');
         navigate('/');
+      } else if (event === 'TOKEN_REFRESHED') {
+        await checkAuth();
       }
     });
 

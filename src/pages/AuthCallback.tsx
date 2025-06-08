@@ -1,42 +1,39 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const handleCallback = useAuthStore(state => state.handleCallback);
+  const checkAuth = useAuthStore(state => state.checkAuth);
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    if (!code) {
-      toast.error('Authentication failed');
-      navigate('/');
-      return;
-    }
-
-    handleCallback(code)
-      .then(() => {
-        toast.success('Successfully connected to GitHub');
+    const handleAuthCallback = async () => {
+      try {
+        // Let Supabase handle the OAuth callback
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for auth state to settle
+        await checkAuth();
         navigate('/dashboard');
-      })
-      .catch((error) => {
-        toast.error(error.message);
+      } catch (error) {
+        console.error('Auth callback error:', error);
+        toast.error('Authentication failed');
         navigate('/');
-      });
-  }, [searchParams, handleCallback, navigate]);
+      }
+    };
+
+    handleAuthCallback();
+  }, [checkAuth, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background-dark">
       <div className="text-center">
         <Loader2 className="h-12 w-12 text-primary-500 animate-spin mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-white mb-2">
-          Connecting to GitHub
+          Completing Authentication
         </h2>
         <p className="text-gray-400">
-          Please wait while we complete the authentication...
+          Please wait while we complete the authentication process...
         </p>
       </div>
     </div>

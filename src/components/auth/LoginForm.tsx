@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
-import { Github, Loader2 } from 'lucide-react';
+import { Github, Loader2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   const handleGitHubLogin = async () => {
     setIsLoading(true);
@@ -30,9 +31,89 @@ export default function LoginForm() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setIsDemoLoading(true);
+    try {
+      // Create a demo user account
+      const demoEmail = 'demo@reposage.com';
+      const demoPassword = 'demo123456';
+      
+      // Try to sign in first
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPassword,
+      });
+
+      if (signInError && signInError.message.includes('Invalid login credentials')) {
+        // If demo user doesn't exist, create it
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: demoEmail,
+          password: demoPassword,
+          options: {
+            data: {
+              user_name: 'demo-user',
+              avatar_url: 'https://i.pravatar.cc/150?img=1',
+              github_id: 'demo-user-123'
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+        
+        if (signUpData.user) {
+          // Create user record in public.users table
+          const { error: userCreateError } = await supabase
+            .from('users')
+            .insert([{
+              id: signUpData.user.id,
+              github_id: 'demo-user-123',
+              username: 'Demo User',
+              email: demoEmail,
+              avatar_url: 'https://i.pravatar.cc/150?img=1',
+              credits: 1000
+            }]);
+
+          if (userCreateError) {
+            console.warn('User record creation failed:', userCreateError);
+          }
+        }
+        
+        toast.success('Demo account created and logged in!');
+      } else if (signInError) {
+        throw signInError;
+      } else {
+        toast.success('Logged in with demo account!');
+      }
+      
+    } catch (error) {
+      console.error('Demo login error:', error);
+      toast.error('Failed to create demo account');
+    } finally {
+      setIsDemoLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-md bg-gray-900 p-6 rounded-xl border border-gray-800">
       <h2 className="text-xl font-semibold text-center mb-6">Get Started with RepoSage</h2>
+      
+      <button
+        onClick={handleDemoLogin}
+        disabled={isDemoLoading}
+        className="w-full flex items-center justify-center gap-2 py-3 mb-4 btn-primary bg-green-600 hover:bg-green-700"
+      >
+        {isDemoLoading ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Creating Demo Account...
+          </>
+        ) : (
+          <>
+            <User className="h-5 w-5" />
+            Try Demo Account
+          </>
+        )}
+      </button>
       
       <button
         onClick={handleGitHubLogin}
