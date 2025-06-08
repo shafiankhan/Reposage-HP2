@@ -85,16 +85,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (session?.user) {
         // Try to fetch existing user
-        const { data: userData, error: userError } = await supabase
+        let { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle to avoid errors when no rows found
 
         let finalUserData = userData;
 
         // If user doesn't exist, create them
-        if (userError && userError.code === 'PGRST116') {
+        if (!userData) {
           console.log('Creating new user record for:', session.user.email);
           
           const newUser = {

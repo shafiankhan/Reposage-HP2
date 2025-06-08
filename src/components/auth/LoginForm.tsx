@@ -4,10 +4,12 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
 import { Github, Loader2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const checkAuth = useAuthStore(state => state.checkAuth);
 
   const handleGitHubLogin = async () => {
     setIsLoading(true);
@@ -34,56 +36,54 @@ export default function LoginForm() {
   const handleDemoLogin = async () => {
     setIsDemoLoading(true);
     try {
-      // Create a demo user account
-      const demoEmail = 'demo@reposage.com';
+      // Create a unique demo user to avoid conflicts
+      const timestamp = Date.now();
+      const demoEmail = `demo-${timestamp}@reposage.com`;
       const demoPassword = 'demo123456';
       
-      // Try to sign in first
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      // Create demo user account
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: demoEmail,
         password: demoPassword,
+        options: {
+          emailRedirectTo: undefined, // Skip email confirmation
+          data: {
+            user_name: `demo-user-${timestamp}`,
+            full_name: 'Demo User',
+            avatar_url: 'https://i.pravatar.cc/150?img=1',
+            github_id: `demo-user-${timestamp}`
+          }
+        }
       });
 
-      if (signInError && signInError.message.includes('Invalid login credentials')) {
-        // If demo user doesn't exist, create it
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: demoEmail,
+      if (signUpError) {
+        console.error('Demo signup error:', signUpError);
+        // If signup fails, try with existing demo account
+        const fallbackEmail = 'demo@reposage.com';
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: fallbackEmail,
           password: demoPassword,
-          options: {
-            data: {
-              user_name: 'demo-user',
-              full_name: 'Demo User',
-              avatar_url: 'https://i.pravatar.cc/150?img=1',
-              github_id: 'demo-user-123'
-            }
-          }
         });
-
-        if (signUpError) throw signUpError;
         
-        toast.success('Demo account created! Please check your email to confirm (or wait a moment for auto-login)');
+        if (signInError) {
+          throw new Error('Failed to create or access demo account');
+        }
         
-        // Try to sign in again after a short delay
-        setTimeout(async () => {
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email: demoEmail,
-            password: demoPassword,
-          });
-          
-          if (!retryError) {
-            toast.success('Demo account logged in!');
-          }
-        }, 2000);
-        
-      } else if (signInError) {
-        throw signInError;
-      } else {
         toast.success('Logged in with demo account!');
+      } else {
+        // If signup successful, the user should be automatically signed in
+        toast.success('Demo account created and logged in!');
+        
+        // Wait a moment for auth state to update
+        setTimeout(async () => {
+          await checkAuth();
+          window.location.href = '/dashboard';
+        }, 1000);
       }
       
     } catch (error) {
       console.error('Demo login error:', error);
-      toast.error('Failed to access demo account');
+      toast.error('Failed to access demo account. Please try email signup instead.');
     } finally {
       setIsDemoLoading(false);
     }
@@ -101,7 +101,7 @@ export default function LoginForm() {
         {isDemoLoading ? (
           <>
             <Loader2 className="h-5 w-5 animate-spin" />
-            Setting up Demo...
+            Creating Demo Account...
           </>
         ) : (
           <>
