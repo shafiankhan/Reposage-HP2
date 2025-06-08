@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '../../lib/supabase';
 import { Github, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -50,9 +52,37 @@ export default function LoginForm() {
         )}
       </button>
 
-      <p className="text-sm text-gray-400 text-center">
-        Sign in with your GitHub account to access your repositories and start using RepoSage.
-      </p>
+      <div className="relative mb-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-700"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 bg-gray-900 text-gray-400">Or continue with</span>
+        </div>
+      </div>
+
+      <Auth
+        supabaseClient={supabase}
+        appearance={{
+          theme: ThemeSupa,
+          variables: {
+            default: {
+              colors: {
+                brand: '#2563eb',
+                brandAccent: '#1d4ed8'
+              }
+            }
+          },
+          className: {
+            container: 'supabase-auth-container',
+            button: 'supabase-auth-button',
+            input: 'supabase-auth-input'
+          }
+        }}
+        theme="dark"
+        providers={[]}
+        redirectTo={`${window.location.origin}/auth/callback`}
+      />
     </div>
   );
 }
