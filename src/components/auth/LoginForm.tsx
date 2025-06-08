@@ -66,10 +66,39 @@ export default function LoginForm() {
         });
         
         if (signInError) {
-          throw new Error('Failed to create or access demo account');
+          // If sign-in fails due to invalid credentials or user not found, create the fallback account
+          if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('User not found')) {
+            const { data: fallbackSignUpData, error: fallbackSignUpError } = await supabase.auth.signUp({
+              email: fallbackEmail,
+              password: demoPassword,
+              options: {
+                emailRedirectTo: undefined, // Skip email confirmation
+                data: {
+                  user_name: 'demo-user',
+                  full_name: 'Demo User',
+                  avatar_url: 'https://i.pravatar.cc/150?img=1',
+                  github_id: 'demo-user'
+                }
+              }
+            });
+            
+            if (fallbackSignUpError) {
+              throw new Error('Failed to create fallback demo account');
+            }
+            
+            toast.success('Demo account created and logged in!');
+            
+            // Wait a moment for auth state to update
+            setTimeout(async () => {
+              await checkAuth();
+              window.location.href = '/dashboard';
+            }, 1000);
+          } else {
+            throw new Error('Failed to access demo account');
+          }
+        } else {
+          toast.success('Logged in with demo account!');
         }
-        
-        toast.success('Logged in with demo account!');
       } else {
         // If signup successful, the user should be automatically signed in
         toast.success('Demo account created and logged in!');
