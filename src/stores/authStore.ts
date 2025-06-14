@@ -1,12 +1,20 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
-import { supabaseService } from '../services/supabase';
-import type { UserDocument } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GithubAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  User
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { firebaseService } from '../services/firebase';
+import type { UserDocument } from '../lib/firebase';
 
 interface AuthState {
   user: UserDocument | null;
-  authUser: User | null;
+  firebaseUser: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => Promise<void>;
@@ -18,22 +26,19 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  authUser: null,
+  firebaseUser: null,
   isLoading: true,
   isAuthenticated: false,
 
   login: async () => {
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          scopes: 'repo user:email read:org'
-        }
-      });
-
-      if (error) throw error;
-
-      // The user will be handled by the auth state change listener
+      const provider = new GithubAuthProvider();
+      provider.addScope('repo');
+      provider.addScope('user:email');
+      provider.addScope('read:org');
+      
+      const result = await signInWithPopup(auth, provider);
+      // User will be handled by the auth state change listener
     } catch (error) {
       console.error('GitHub OAuth error:', error);
       throw error;
@@ -42,14 +47,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginWithEmail: async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-
-      // The user will be handled by the auth state change listener
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      // User will be handled by the auth state change listener
     } catch (error) {
       console.error('Email login error:', error);
       throw error;
@@ -58,19 +57,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signupWithEmail: async (email: string, password: string, name: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: name
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      // The user will be handled by the auth state change listener
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user document in Firestore
+      const userData = {
+        username: name,
+        email: email,
+        avatarUrl: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+        credits: 1000
+      };
+      
+      await firebaseService.createUser(userData);
+      
+      // User will be handled by the auth state change listener
     } catch (error) {
       console.error('Email signup error:', error);
       throw error;
@@ -79,8 +78,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);
       throw error;
@@ -88,73 +86,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initialize: () => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        handleAuthUser(session.user);
-      } else {
-        set({ 
-          user: null, 
-          authUser: null,
-          isAuthenticated: false, 
-          isLoading: false 
-        });
-      }
-    });
+    onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          set({ firebaseUser, isLoading: true });
 
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await handleAuthUser(session.user);
-      } else {
-        set({ 
-          user: null, 
-          authUser: null,
-          isAuthenticated: false, 
-          isLoading: false 
-        });
-      }
-    });
+          // Try to get existing user from Firestore
+          let user = await firebaseService.getUserByEmail(firebaseUser.email!);
 
-    async function handleAuthUser(authUser: User) {
-      try {
-        set({ authUser, isLoading: true });
+          // If user doesn't exist, create them
+          if (!user) {
+            const userData = {
+              githubId: firebaseUser.providerData[0]?.uid,
+              username: firebaseUser.displayName || 
+                       firebaseUser.email?.split('@')[0] || 
+                       'User',
+              email: firebaseUser.email!,
+              avatarUrl: firebaseUser.photoURL || 
+                        `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+              credits: 1000
+            };
 
-        // Try to get existing user from database
-        let user = await supabaseService.getUserByAuthId(authUser.id);
+            const userId = await firebaseService.createUser(userData);
+            user = await firebaseService.getUser(userId);
+          }
 
-        // If user doesn't exist, create them
-        if (!user) {
-          const userData = {
-            github_id: authUser.user_metadata?.provider_id || authUser.id,
-            username: authUser.user_metadata?.user_name || 
-                     authUser.user_metadata?.username || 
-                     authUser.email?.split('@')[0] || 
-                     'User',
-            email: authUser.email || '',
-            avatar_url: authUser.user_metadata?.avatar_url || 
-                       `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
-            credits: 1000
-          };
-
-          user = await supabaseService.createUser(userData);
+          set({ 
+            user, 
+            firebaseUser,
+            isAuthenticated: true, 
+            isLoading: false 
+          });
+        } catch (error) {
+          console.error('Error handling auth user:', error);
+          set({ 
+            user: null, 
+            firebaseUser: null,
+            isAuthenticated: false, 
+            isLoading: false 
+          });
         }
-
-        set({ 
-          user, 
-          authUser,
-          isAuthenticated: true, 
-          isLoading: false 
-        });
-      } catch (error) {
-        console.error('Error handling auth user:', error);
+      } else {
         set({ 
           user: null, 
-          authUser: null,
+          firebaseUser: null,
           isAuthenticated: false, 
           isLoading: false 
         });
       }
-    }
+    });
   }
 }));

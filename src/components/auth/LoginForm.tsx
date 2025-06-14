@@ -20,7 +20,8 @@ export default function LoginForm() {
     setIsLoading(true);
     try {
       await login();
-      toast.success('Redirecting to GitHub...');
+      toast.success('Successfully signed in with GitHub!');
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to connect with GitHub');
@@ -64,7 +65,7 @@ export default function LoginForm() {
         navigate('/dashboard', { replace: true });
       } catch (signupError: any) {
         console.error('Demo login error:', signupError);
-        toast.error('Failed to access demo account. Please check your Supabase configuration.');
+        toast.error('Failed to access demo account. Please try again.');
       }
     } finally {
       setIsDemoLoading(false);

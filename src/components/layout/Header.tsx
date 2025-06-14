@@ -59,7 +59,7 @@ export default function Header() {
               </div>
               <img 
                 className="h-8 w-8 rounded-full ring-2 ring-primary-600"
-                src={user.avatar_url}
+                src={user.avatarUrl}
                 alt={user.username || 'User'}
               />
             </motion.div>

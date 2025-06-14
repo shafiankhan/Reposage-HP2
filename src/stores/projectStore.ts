@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { githubService } from '../services/github';
-import { supabaseService } from '../services/supabase';
+import { firebaseService } from '../services/firebase';
 import { useAuthStore } from './authStore';
 
 interface Project {
@@ -47,35 +47,35 @@ export const useProjectStore = create<ProjectState>()(
           if (!user) throw new Error('User not authenticated');
           
           const projectData = {
-            user_id: user.id,
+            userId: user.id,
             name: repoData.name,
             description: repoData.description || '',
-            github_url: repoData.html_url,
+            githubUrl: repoData.html_url,
             owner,
             repo,
-            is_private: repoData.private,
+            isPrivate: repoData.private,
             stars: repoData.stargazers_count,
             forks: repoData.forks_count,
             issues: repoData.open_issues_count,
             language: repoData.language || 'Unknown',
-            last_updated: new Date(repoData.updated_at).toISOString()
+            lastUpdated: new Date(repoData.updated_at)
           };
 
-          const projectId = await supabaseService.createProject(projectData);
+          const projectId = await firebaseService.createProject(projectData);
           
           const project: Project = {
             id: projectId,
             name: projectData.name,
             description: projectData.description,
-            githubUrl: projectData.github_url,
+            githubUrl: projectData.githubUrl,
             owner: projectData.owner,
             repo: projectData.repo,
-            isPrivate: projectData.is_private,
+            isPrivate: projectData.isPrivate,
             stars: projectData.stars,
             forks: projectData.forks,
             issues: projectData.issues,
             language: projectData.language,
-            lastUpdated: projectData.last_updated
+            lastUpdated: projectData.lastUpdated.toISOString()
           };
 
           set(state => ({
@@ -93,7 +93,7 @@ export const useProjectStore = create<ProjectState>()(
 
       removeProject: async (id: string) => {
         try {
-          await supabaseService.deleteProject(id);
+          await firebaseService.deleteProject(id);
           set(state => ({
             projects: state.projects.filter(project => project.id !== id)
           }));
@@ -126,20 +126,20 @@ export const useProjectStore = create<ProjectState>()(
             return;
           }
 
-          const projectDocs = await supabaseService.getProjects(user.id);
+          const projectDocs = await firebaseService.getProjects(user.id);
           const projects: Project[] = projectDocs.map(doc => ({
             id: doc.id,
             name: doc.name,
             description: doc.description,
-            githubUrl: doc.github_url,
+            githubUrl: doc.githubUrl,
             owner: doc.owner,
             repo: doc.repo,
-            isPrivate: doc.is_private,
+            isPrivate: doc.isPrivate,
             stars: doc.stars,
             forks: doc.forks,
             issues: doc.issues,
             language: doc.language,
-            lastUpdated: doc.last_updated
+            lastUpdated: doc.lastUpdated.toISOString()
           }));
 
           set({ projects, loading: false });
