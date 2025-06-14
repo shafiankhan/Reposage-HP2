@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import toast from 'react-hot-toast';
+import type { UserDocument } from '../lib/supabase';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: any;
+  user: UserDocument | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
 }
