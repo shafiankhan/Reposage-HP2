@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { UserDocument } from '../lib/supabase';
+import type { UserDocument, ProjectDocument } from '../lib/supabase';
 
 export const supabaseService = {
   // User operations
@@ -60,5 +60,61 @@ export const supabaseService = {
     }
 
     return data;
+  },
+
+  // Project operations
+  async createProject(projectData: Omit<ProjectDocument, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        user_id: projectData.user_id,
+        name: projectData.name,
+        description: projectData.description,
+        github_url: projectData.github_url,
+        owner: projectData.owner,
+        repo: projectData.repo,
+        is_private: projectData.is_private,
+        stars: projectData.stars,
+        forks: projectData.forks,
+        issues: projectData.issues,
+        language: projectData.language,
+        last_updated: projectData.last_updated
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+
+    return data.id;
+  },
+
+  async getProjects(userId: string): Promise<ProjectDocument[]> {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    }
+
+    return data || [];
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
   }
 };
