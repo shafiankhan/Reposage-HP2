@@ -52,6 +52,8 @@ export default function LoginForm() {
         toast.error('No account found with this email. Please sign up first.');
       } else if (error.code === 'auth/wrong-password') {
         toast.error('Incorrect password. Please try again.');
+      } else if (error.code === 'auth/invalid-credential') {
+        toast.error('Invalid email or password. Please check your credentials.');
       } else if (error.code === 'auth/invalid-email') {
         toast.error('Please enter a valid email address.');
       } else if (error.code === 'auth/weak-password') {
