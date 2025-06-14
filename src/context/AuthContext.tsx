@@ -15,12 +15,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, login, logout, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, login, logout, initialize } = useAuthStore();
 
   useEffect(() => {
     // Initial auth check
-    checkAuth();
-  }, [checkAuth]);
+    initialize();
+  }, [initialize]);
 
   // Redirect authenticated users away from landing page
   useEffect(() => {
