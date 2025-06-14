@@ -1,126 +1,113 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  GithubAuthProvider,
+  User
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { firebaseService } from '../services/firebase';
 
 interface AuthState {
   user: User | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   signupWithEmail: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
-  initialize: () => Promise<void>;
+  initialize: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
+  isAuthenticated: false,
 
   login: async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      });
+      const provider = new GithubAuthProvider();
+      provider.addScope('repo');
+      provider.addScope('user:email');
+      provider.addScope('read:org');
       
-      if (error) {
-        console.error('GitHub OAuth error:', error);
-        throw error;
+      const result = await signInWithPopup(auth, provider);
+      
+      // Create or update user document in Firestore
+      const existingUser = await firebaseService.getUserByAuthId(result.user.uid);
+      if (!existingUser) {
+        await firebaseService.createUser({
+          githubId: result.user.providerData[0]?.uid || result.user.uid,
+          username: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          email: result.user.email || '',
+          avatarUrl: result.user.photoURL || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+          credits: 1000
+        });
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('GitHub OAuth error:', error);
       throw error;
     }
   },
 
   loginWithEmail: async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const result = await signInWithEmailAndPassword(auth, email, password);
       
-      if (error) {
-        console.error('Email login error:', error);
-        throw error;
+      // Ensure user document exists
+      const existingUser = await firebaseService.getUserByAuthId(result.user.uid);
+      if (!existingUser) {
+        await firebaseService.createUser({
+          githubId: result.user.uid,
+          username: result.user.displayName || result.user.email?.split('@')[0] || 'User',
+          email: result.user.email || '',
+          avatarUrl: result.user.photoURL || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+          credits: 1000
+        });
       }
-      
-      set({ user: data.user });
     } catch (error) {
-      console.error('Login with email failed:', error);
-      // Re-throw with more context
-      if (error instanceof Error && error.message.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
-      }
+      console.error('Email login error:', error);
       throw error;
     }
   },
 
   signupWithEmail: async (email: string, password: string, name: string) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            username: name.toLowerCase().replace(/\s+/g, '_')
-          }
-        }
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Create user document in Firestore
+      await firebaseService.createUser({
+        githubId: result.user.uid,
+        username: name,
+        email: result.user.email || '',
+        avatarUrl: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+        credits: 1000
       });
-      
-      if (error) {
-        console.error('Email signup error:', error);
-        throw error;
-      }
-      
-      set({ user: data.user });
     } catch (error) {
-      console.error('Signup with email failed:', error);
-      // Re-throw with more context
-      if (error instanceof Error && error.message.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
-      }
+      console.error('Email signup error:', error);
       throw error;
     }
   },
 
   logout: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-        throw error;
-      }
-      set({ user: null });
+      await signOut(auth);
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout error:', error);
       throw error;
     }
   },
 
-  initialize: async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Session retrieval error:', error);
-        set({ isLoading: false });
-        return;
-      }
-      
-      set({ user: session?.user ?? null, isLoading: false });
-
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event);
-        set({ user: session?.user ?? null, isLoading: false });
+  initialize: () => {
+    onAuthStateChanged(auth, (user) => {
+      set({ 
+        user, 
+        isAuthenticated: !!user, 
+        isLoading: false 
       });
-    } catch (error) {
-      console.error('Auth initialization error:', error);
-      set({ isLoading: false });
-    }
+    });
   }
 }));

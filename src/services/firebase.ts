@@ -9,9 +9,8 @@ import {
   query,
   where,
   orderBy,
-  limit,
   serverTimestamp,
-  Timestamp
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type {
@@ -24,7 +23,8 @@ import type {
 export class FirebaseService {
   // User operations
   async createUser(userData: Omit<UserDocument, 'id' | 'createdAt' | 'updatedAt'>) {
-    const docRef = await addDoc(collection(db, 'users'), {
+    const docRef = doc(collection(db, 'users'));
+    await setDoc(docRef, {
       ...userData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -49,14 +49,14 @@ export class FirebaseService {
   }
 
   async getUserByAuthId(authId: string): Promise<UserDocument | null> {
-    const q = query(collection(db, 'users'), where('authId', '==', authId));
+    const q = query(collection(db, 'users'), where('githubId', '==', authId));
     const querySnapshot = await getDocs(q);
     
     if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      const data = doc.data();
+      const docSnap = querySnapshot.docs[0];
+      const data = docSnap.data();
       return {
-        id: doc.id,
+        id: docSnap.id,
         ...data,
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date()
