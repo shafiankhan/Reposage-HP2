@@ -20,12 +20,10 @@ export default function LoginForm() {
     setIsLoading(true);
     try {
       await login();
-      toast.success('Successfully signed in with GitHub!');
-      navigate('/dashboard', { replace: true });
+      toast.success('Redirecting to GitHub...');
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to connect with GitHub');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -43,9 +41,9 @@ export default function LoginForm() {
         toast.success('Successfully signed in!');
       }
       navigate('/dashboard', { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Email auth error:', error);
-      toast.error(isSignup ? 'Failed to create account' : 'Failed to sign in');
+      toast.error(error.message || (isSignup ? 'Failed to create account' : 'Failed to sign in'));
     } finally {
       setIsLoading(false);
     }
@@ -57,15 +55,15 @@ export default function LoginForm() {
       await loginWithEmail('demo@reposage.com', 'demo123456');
       toast.success('Logged in with demo account!');
       navigate('/dashboard', { replace: true });
-    } catch (error) {
+    } catch (error: any) {
       // If demo account doesn't exist, create it
       try {
         await signupWithEmail('demo@reposage.com', 'demo123456', 'Demo User');
         toast.success('Demo account created! Redirecting to dashboard...');
         navigate('/dashboard', { replace: true });
-      } catch (signupError) {
+      } catch (signupError: any) {
         console.error('Demo login error:', signupError);
-        toast.error('Failed to access demo account');
+        toast.error('Failed to access demo account: ' + (signupError.message || 'Unknown error'));
       }
     } finally {
       setIsDemoLoading(false);
