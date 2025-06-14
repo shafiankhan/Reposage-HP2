@@ -1,5 +1,15 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import {
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  GithubAuthProvider,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
+import { firebaseService } from '../services/firebase';
 
 interface User {
   id: string;
@@ -16,7 +26,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: () => Promise<void>;
-  handleCallback: (code: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  signupWithEmail: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -30,14 +41,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async () => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'repo user:email read:org'
-        }
-      });
-      if (error) throw error;
+      const provider = new GithubAuthProvider();
+      provider.addScope('repo');
+      provider.addScope('user:email');
+      provider.addScope('read:org');
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GithubAuthProvider.credentialFromResult(result);
+      
+      if (result.user) {
+        await get().createOrUpdateUser(result.user, credential?.accessToken);
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Login failed' });
       throw error;
@@ -46,30 +60,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  handleCallback: async () => {
+  loginWithEmail: async (email: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      // Wait for auth state to settle
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      if (!session) throw new Error('No session found');
-
-      await get().checkAuth();
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (result.user) {
+        await get().createOrUpdateUser(result.user);
+      }
     } catch (error) {
-      set({
-        loading: false,
-        error: error instanceof Error ? error.message : 'Authentication failed'
-      });
+      set({ error: error instanceof Error ? error.message : 'Login failed' });
       throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  signupWithEmail: async (email: string, password: string, name: string) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      if (result.user) {
+        await get().createOrUpdateUser(result.user, undefined, name);
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Signup failed' });
+      throw error;
+    } finally {
+      set({ loading: false });
     }
   },
 
   logout: async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      await signOut(auth);
       set({ user: null, isAuthenticated: false });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Logout failed' });
@@ -79,103 +102,72 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkAuth: async () => {
     set({ loading: true });
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      
-      if (session?.user) {
-        // Try to fetch existing user
-        let { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle(); // Use maybeSingle to avoid errors when no rows found
-
-        let finalUserData = userData;
-
-        // If user doesn't exist, create them
-        if (!userData) {
-          console.log('Creating new user record for:', session.user.email);
-          
-          const newUser = {
-            id: session.user.id,
-            github_id: session.user.user_metadata?.user_name || 
-                      session.user.user_metadata?.preferred_username || 
-                      session.user.user_metadata?.sub || 
-                      session.user.email?.split('@')[0] || 
-                      'user-' + Date.now(),
-            username: session.user.user_metadata?.full_name || 
-                     session.user.user_metadata?.name ||
-                     session.user.user_metadata?.user_name || 
-                     session.user.user_metadata?.preferred_username || 
-                     session.user.email?.split('@')[0] || 
-                     'User',
-            email: session.user.email || '',
-            avatar_url: session.user.user_metadata?.avatar_url || 
-                       `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
-            credits: 1000
-          };
-
-          const { data: createdUser, error: createError } = await supabase
-            .from('users')
-            .insert([newUser])
-            .select()
-            .single();
-
-          if (createError) {
-            console.warn('Failed to create user record:', createError);
-            // Continue with fallback user data
-            finalUserData = {
-              id: session.user.id,
-              email: session.user.email || '',
-              username: newUser.username,
-              avatar_url: newUser.avatar_url,
-              credits: 1000,
-              github_id: newUser.github_id,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
+    
+    return new Promise<void>((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            await get().createOrUpdateUser(firebaseUser);
           } else {
-            finalUserData = createdUser;
-            console.log('User record created successfully');
+            set({ user: null, isAuthenticated: false, loading: false });
           }
-        } else if (userError) {
-          console.warn('User fetch error:', userError);
-          // Continue with fallback user data
-          finalUserData = {
-            id: session.user.id,
-            email: session.user.email || '',
-            username: session.user.user_metadata?.full_name || 
-                     session.user.user_metadata?.name ||
-                     session.user.email?.split('@')[0] || 
-                     'User',
-            avatar_url: session.user.user_metadata?.avatar_url || 
-                       `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
-            credits: 1000,
-            github_id: session.user.user_metadata?.user_name || 'user-' + Date.now(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
+        } catch (error) {
+          console.error('Auth check error:', error);
+          set({ user: null, isAuthenticated: false, loading: false });
         }
+        unsubscribe();
+        resolve();
+      });
+    });
+  },
 
-        set({
-          user: {
-            id: finalUserData.id,
-            email: finalUserData.email,
-            name: finalUserData.username,
-            avatarUrl: finalUserData.avatar_url,
-            credits: finalUserData.credits,
-            plan: 'free'
-          },
-          isAuthenticated: true,
-          loading: false
-        });
+  // Helper method to create or update user
+  createOrUpdateUser: async (firebaseUser: FirebaseUser, githubToken?: string, displayName?: string) => {
+    try {
+      let userData = await firebaseService.getUserByAuthId(firebaseUser.uid);
+      
+      if (!userData) {
+        // Create new user
+        const newUserData = {
+          authId: firebaseUser.uid,
+          githubId: firebaseUser.providerData[0]?.uid || firebaseUser.uid,
+          username: displayName || 
+                   firebaseUser.displayName || 
+                   firebaseUser.email?.split('@')[0] || 
+                   'User',
+          email: firebaseUser.email || '',
+          avatarUrl: firebaseUser.photoURL || 
+                    `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70) + 1}`,
+          credits: 1000
+        };
+        
+        const userId = await firebaseService.createUser(newUserData);
+        userData = { id: userId, ...newUserData, createdAt: new Date(), updatedAt: new Date() };
       } else {
-        set({ user: null, isAuthenticated: false, loading: false });
+        // Update existing user
+        await firebaseService.updateUser(userData.id, {
+          email: firebaseUser.email || userData.email,
+          avatarUrl: firebaseUser.photoURL || userData.avatarUrl,
+          username: displayName || firebaseUser.displayName || userData.username
+        });
       }
+
+      set({
+        user: {
+          id: userData.id,
+          email: userData.email,
+          name: userData.username,
+          avatarUrl: userData.avatarUrl,
+          credits: userData.credits,
+          plan: 'free'
+        },
+        isAuthenticated: true,
+        loading: false
+      });
     } catch (error) {
-      console.error('Auth check error:', error);
-      set({ user: null, isAuthenticated: false, loading: false });
+      console.error('Error creating/updating user:', error);
+      set({ loading: false });
+      throw error;
     }
   }
 }));

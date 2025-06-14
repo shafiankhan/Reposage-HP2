@@ -1,38 +1,19 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
 import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const checkAuth = useAuthStore(state => state.checkAuth);
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        console.log('Processing auth callback...');
-        
-        // Wait for auth state to settle
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        await checkAuth();
-        
-        console.log('Auth callback complete, redirecting to dashboard');
-        toast.success('Authentication successful!');
-        
-        // Force redirect to dashboard
-        navigate('/dashboard', { replace: true });
-        
-      } catch (error) {
-        console.error('Auth callback error:', error);
-        toast.error('Authentication failed');
-        navigate('/', { replace: true });
-      }
-    };
+    // Firebase handles auth state automatically, so we just redirect
+    const timer = setTimeout(() => {
+      navigate('/dashboard', { replace: true });
+    }, 2000);
 
-    handleAuthCallback();
-  }, [checkAuth, navigate]);
+    return () => clearTimeout(timer);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background-dark">

@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import MainLayout from '../components/layout/MainLayout';
 import ProjectCard from '../components/dashboard/ProjectCard';
 import RecentActivityItem from '../components/dashboard/RecentActivityItem';
 import CreditUsageChart from '../components/dashboard/CreditUsageChart';
 import { Plus, GitBranch, Code, MessageCircle } from 'lucide-react';
-import { mockProjects } from '../mock/projects';
 import { mockActivities } from '../mock/activities';
 import { creditUsageData } from '../mock/chartData';
+import { useProjectStore } from '../stores/projectStore';
 
 export default function Dashboard() {
   const [isAddProjectModalOpen, setIsAddProjectModalOpen] = useState(false);
+  const { projects, loadProjects } = useProjectStore();
+  
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
   
   const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
@@ -54,7 +59,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-sm text-gray-400">Total Projects</p>
-              <h3 className="text-2xl font-bold">{mockProjects.length}</h3>
+              <h3 className="text-2xl font-bold">{projects.length}</h3>
             </div>
           </motion.div>
           
@@ -106,11 +111,31 @@ export default function Dashboard() {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {mockProjects.slice(0, 4).map((project) => (
-                  <ProjectCard key={project.id} {...project} />
-                ))}
-              </div>
+              {projects.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 mb-4">No projects yet</p>
+                  <button
+                    onClick={() => setIsAddProjectModalOpen(true)}
+                    className="btn-primary"
+                  >
+                    Add Your First Project
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {projects.slice(0, 4).map((project) => (
+                    <ProjectCard 
+                      key={project.id} 
+                      {...project}
+                      stars={project.stars}
+                      forks={project.forks}
+                      issues={project.issues}
+                      pullRequests={0}
+                      languageColor="#3178c6"
+                    />
+                  ))}
+                </div>
+              )}
             </motion.div>
             
             <motion.div
