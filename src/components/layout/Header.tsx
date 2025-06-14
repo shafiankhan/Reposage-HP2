@@ -25,7 +25,9 @@ export default function Header() {
               className="hidden md:flex items-center px-3 py-1 rounded-full bg-primary-900/50 border border-primary-700/50"
             >
               <span className="text-xs font-medium text-primary-300">Credits:</span>
-              <span className="ml-2 text-sm font-semibold text-white">{user.credits.toLocaleString()}</span>
+              <span className="ml-2 text-sm font-semibold text-white">
+                {user.credits ? user.credits.toLocaleString() : '0'}
+              </span>
             </motion.div>
           )}
 
@@ -52,13 +54,13 @@ export default function Header() {
               className="flex items-center space-x-3"
             >
               <div className="hidden md:block text-right">
-                <div className="text-sm font-medium text-white">{user.name}</div>
-                <div className="text-xs text-gray-400">{user.plan.charAt(0).toUpperCase() + user.plan.slice(1)} Plan</div>
+                <div className="text-sm font-medium text-white">{user.username || 'User'}</div>
+                <div className="text-xs text-gray-400">Free Plan</div>
               </div>
               <img 
                 className="h-8 w-8 rounded-full ring-2 ring-primary-600"
-                src={user.avatarUrl}
-                alt={user.name}
+                src={user.avatar_url}
+                alt={user.username || 'User'}
               />
             </motion.div>
           )}

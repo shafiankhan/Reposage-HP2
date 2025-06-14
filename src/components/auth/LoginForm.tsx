@@ -52,6 +52,7 @@ export default function LoginForm() {
   const handleDemoLogin = async () => {
     setIsDemoLoading(true);
     try {
+      // Try to sign in with demo account
       await loginWithEmail('demo@reposage.com', 'demo123456');
       toast.success('Logged in with demo account!');
       navigate('/dashboard', { replace: true });
@@ -63,7 +64,7 @@ export default function LoginForm() {
         navigate('/dashboard', { replace: true });
       } catch (signupError: any) {
         console.error('Demo login error:', signupError);
-        toast.error('Failed to access demo account: ' + (signupError.message || 'Unknown error'));
+        toast.error('Failed to access demo account. Please check your Supabase configuration.');
       }
     } finally {
       setIsDemoLoading(false);
