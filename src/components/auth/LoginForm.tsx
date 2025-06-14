@@ -44,7 +44,22 @@ export default function LoginForm() {
       navigate('/dashboard', { replace: true });
     } catch (error: any) {
       console.error('Email auth error:', error);
-      toast.error(error.message || (isSignup ? 'Failed to create account' : 'Failed to sign in'));
+      
+      // Handle specific Firebase error codes
+      if (error.code === 'auth/email-already-in-use' && isSignup) {
+        toast.error('This email is already in use. Please sign in instead.');
+      } else if (error.code === 'auth/user-not-found' && !isSignup) {
+        toast.error('No account found with this email. Please sign up first.');
+      } else if (error.code === 'auth/wrong-password') {
+        toast.error('Incorrect password. Please try again.');
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('Please enter a valid email address.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Password should be at least 6 characters long.');
+      } else {
+        // Fallback to generic error message
+        toast.error(error.message || (isSignup ? 'Failed to create account' : 'Failed to sign in'));
+      }
     } finally {
       setIsLoading(false);
     }
