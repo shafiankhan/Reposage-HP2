@@ -1,4 +1,4 @@
-# Repo-Sage 🧠
+# RepoSage 🧠
 
 **AI-Powered Code Intelligence & Meeting Collaboration Platform**
 
